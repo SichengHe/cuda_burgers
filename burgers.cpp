@@ -4,44 +4,113 @@
 #include <fstream>
 using namespace std;
 
-// // upwind flux
-// std::vector<double> laxWendroffFlux(const std::vector<double>& u, double dx, double dt, double velocity) {
-//     int n = u.size();
-//     std::vector<double> flux(n, 0.0);
-
-//     double alpha = velocity * dt / dx;
-//     double alpha2 = alpha * alpha;
-
-//     for (int i = 1; i < n - 1; ++i) {
-//         flux[i] = u[i] - 0.5 * alpha * (u[i + 1] - u[i - 1]) 
-//                          + 0.5 * alpha2 * (u[i + 1] - 2 * u[i] + u[i - 1]);
-//     }
-
-//     return flux;
-// }
-
-double compute_JST_flux(double um1, double u0, double up1, double up2){
+void compute_JST_flux(const std::vector<double>& u, std::vector<double>& dudt, double uL, double uR){
 
     double flux_inv_p1, flux_inv_0, flux_inv, flux_vis;
     double delta_up15, delta_up05, delta_um05;
+
+    double um_loc_m2, um_loc_m1, um_loc_0, um_loc_p1, um_loc_p2;
+    double h_p05, h_m05;
+
+    double um1, u0, up1, up2;
 
     // artificial viscosity
     double coeff_visc_2 = 0.5;
     double coeff_visc_4 = 0.05;
 
-    // inviscid flux f = 0.5 u^2
-    flux_inv_p1 = 0.5 * pow(up1,2);
-    flux_inv_0 = 0.5 * pow(u0,2);
-    flux_inv = 0.5 * (flux_inv_p1 + flux_inv_0);
+    // Get dimension
+    int n = u.size();
+
+    // Flux
+    for (int i = 0; i < n; i++) {
+        if (i==0){
+            um_loc_m2 = uL;
+            um_loc_m1 = uL;
+            um_loc_0 = u[i];
+            um_loc_p1 = u[i+1];
+            um_loc_p2 = u[i+2];
+            }
+
+        else if (i==1){
+            um_loc_m2 = uL;
+            um_loc_m1 = u[i-1];
+            um_loc_0 = u[i];
+            um_loc_p1 = u[i+1];
+            um_loc_p2 = u[i+2];
+        }
+        else if (i==n-2){
+            um_loc_m2 = u[i-2];
+            um_loc_m1 = u[i-1];
+            um_loc_0 = u[i];
+            um_loc_p1 = u[i+1];
+            um_loc_p2 = uR;
+        }
+        else if (i==n-1){
+            um_loc_m2 = u[i-2];
+            um_loc_m1 = u[i-1];
+            um_loc_0 = u[i];
+            um_loc_p1 = uR;
+            um_loc_p2 = uR;
+        }
+        else{
+            um_loc_m2 = u[i-2];
+            um_loc_m1 = u[i-1];
+            um_loc_0 = u[i];
+            um_loc_p1 = u[i+1];
+            um_loc_p2 = u[i+2];
+        }
+
+        // Left neighbor flux
+        um1 = um_loc_m2;
+        u0 = um_loc_m1;
+        up1 = um_loc_0;
+        up2 = um_loc_p1;
+
+        flux_inv_p1 = 0.5 * pow(up1,2);
+        flux_inv_0 = 0.5 * pow(u0,2);
+        flux_inv = 0.5 * (flux_inv_p1 + flux_inv_0);
+
+        delta_up15 = up2 - up1;
+        delta_up05 = up1 - u0;
+        delta_um05 = u0 - um1;
+        
+        flux_vis = coeff_visc_2 * delta_up05 - coeff_visc_4 * (delta_up15 - 2 * delta_up05 + delta_um05);
+
+        h_p05 = flux_inv - flux_vis;
+
+        // Right neighbor flux
+        um1 = um_loc_m1;
+        u0 = um_loc_0;
+        up1 = um_loc_p1;
+        up2 = um_loc_p2;
+
+        flux_inv_p1 = 0.5 * pow(up1,2);
+        flux_inv_0 = 0.5 * pow(u0,2);
+        flux_inv = 0.5 * (flux_inv_p1 + flux_inv_0);
 
 
-    delta_up15 = up2 - up1;
-    delta_up05 = up1 - u0;
-    delta_um05 = u0 - um1;
-    
-    flux_vis = coeff_visc_2 * delta_up05 - coeff_visc_4 * (delta_up15 - 2 * delta_up05 + delta_um05);
+        delta_up15 = up2 - up1;
+        delta_up05 = up1 - u0;
+        delta_um05 = u0 - um1;
+        
+        flux_vis = coeff_visc_2 * delta_up05 - coeff_visc_4 * (delta_up15 - 2 * delta_up05 + delta_um05);
 
-    return  flux_inv - flux_vis;
+        h_m05 = flux_inv - flux_vis;
+
+        // Forward Euler
+        dudt[i] = h_p05 - h_m05;
+            
+    }
+}
+
+void update_state(std::vector<double>&u, const std::vector<double>&dudt, double dtdx){
+    // Get dimension
+    int n = u.size();
+
+    // Flux
+    for (int i = 0; i < n; i++) {
+        u[i] += dudt[i] * dtdx;
+    }
 }
 
 double compute_dt(const std::vector<double>&u, double dx, int n, double CFL_val){
@@ -76,80 +145,33 @@ int main() {
     double x_loc;
     double t=0.0;
     double dt;
-
-    double um_loc_m2, um_loc_m1, um_loc_0, um_loc_p1, um_loc_p2;
-    double h_p05, h_m05;
+    double dtdx;
 
     // Initialization
     std::vector<double> u(n, 0.0);
-    std::vector<double> um(n, 0.0);
+    std::vector<double> dudt(n, 0.0);
 
     double uL = 1.0;
     double uR = 0.0;
     for (int i = 0; i < n; i++) {
         x_loc = (i + 0.5) * dx + xL;
         if (x_loc < 0.0){
-            um[i] = uL;
+            u[i] = uL;
         }
         else {
-            um[i] = uR;
+            u[i] = uR;
         }
     }
 
     // time stepping
     while (t < T){
         // Compute the maximum step size
-        dt = compute_dt(um, dx, n, CFL_val);
+        dt = compute_dt(u, dx, n, CFL_val);
+        dtdx = dt/dx;
 
-        // Time integration
-        for (int i = 0; i < n; i++) {
-            if (i==0){
-                um_loc_m2 = uL;
-                um_loc_m1 = uL;
-                um_loc_0 = um[i];
-                um_loc_p1 = um[i+1];
-                um_loc_p2 = um[i+2];
-                }
+        compute_JST_flux(u, dudt, uL, uR);
 
-            else if (i==1){
-                um_loc_m2 = uL;
-                um_loc_m1 = um[i-1];
-                um_loc_0 = um[i];
-                um_loc_p1 = um[i+1];
-                um_loc_p2 = um[i+2];
-            }
-            else if (i==n-2){
-                um_loc_m2 = um[i-2];
-                um_loc_m1 = um[i-1];
-                um_loc_0 = um[i];
-                um_loc_p1 = um[i+1];
-                um_loc_p2 = uR;
-            }
-            else if (i==n-1){
-                um_loc_m2 = um[i-2];
-                um_loc_m1 = um[i-1];
-                um_loc_0 = um[i];
-                um_loc_p1 = uR;
-                um_loc_p2 = uR;
-            }
-            else{
-                um_loc_m2 = um[i-2];
-                um_loc_m1 = um[i-1];
-                um_loc_0 = um[i];
-                um_loc_p1 = um[i+1];
-                um_loc_p2 = um[i+2];
-            }
-
-            h_p05 = compute_JST_flux(um_loc_m1, um_loc_0, um_loc_p1, um_loc_p2);
-            h_m05 = compute_JST_flux(um_loc_m2, um_loc_m1, um_loc_0, um_loc_p1);
-
-            // Forward Euler
-            u[i] = um[i] - dt / dx * (h_p05 - h_m05);
-                
-        }
-
-        // Update the history vector
-        std::copy(u.begin(), u.end(), um.begin());
+        update_state(u, dudt, dtdx);
 
         // Update time
         t = t + dt;
