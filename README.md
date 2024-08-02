@@ -16,4 +16,4 @@ Compile using
 Run with `./test`. 
 
 ## Performance
-![alt text](http://url/to/img.png)
+![Performance](https://github.com/SichengHe/cuda_burgers/blob/main/results.png)
