@@ -26,6 +26,7 @@ def compute_JST_flux(um1, u0, up1, up2):
 def compute_dt(u, dx, n, CFL_val):
 
     dt = dx / abs(2 * u[0])
+    
     for i in range(n):
         dt_new = dx / (abs(2 * u[i]) + 1e-8)
         if dt > dt_new:
@@ -33,7 +34,8 @@ def compute_dt(u, dx, n, CFL_val):
 
     return dt * CFL_val
 
-n = 1000
+n = 2**12
+# n = 65536
 L = 1.0
 T = 0.8
 

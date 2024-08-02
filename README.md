@@ -10,4 +10,4 @@ Compile use `g++ -o burgers burgers.cpp`.
 
 
 Compile using 
-`nvcc -arch=sm_50 -o test`
+`nvcc -arch=sm_50 burgers.cu -o test`

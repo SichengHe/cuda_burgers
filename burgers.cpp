@@ -131,7 +131,8 @@ double compute_dt(const std::vector<double>&u, double dx, int n, double CFL_val)
 int main() {
 
     // constants
-    int n = 1000;
+    int n = pow(2, 13);
+    // int n = 1000;
     double T = 0.8;
 
     double xL = -1.0;
