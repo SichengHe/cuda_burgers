@@ -56,7 +56,7 @@ ax[1].set_ylabel(r"$\text{Time, s}$", rotation="horizontal", ha="right")
 niceplots.adjust_spines(ax[1])
 niceplots.label_line_ends(ax[1])
 
-plt.savefig('results.pdf', bbox_inches='tight')
-
+# plt.savefig('results.pdf', bbox_inches='tight')
+plt.savefig('results.png', bbox_inches='tight')
 
 plt.show()
