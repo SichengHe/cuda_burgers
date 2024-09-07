@@ -9,6 +9,11 @@
 Compile use `g++ -o burgers burgers.cpp`.
 Run with `./burgers`. (Authorize by `chmod +x burgers`)
 
+### `julia` wrapper
+Compile the `c++` code with the extra `-fPIC -shared` flags.
+Also make the `-o libburgers.so` to follow best practices.
+Run `julia main.jl`
+
 ### `CUDA` code
 
 Compile using 
